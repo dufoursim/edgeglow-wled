@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>'EdgeGlow'</title>
+  <link rel="icon" href="resources/icon.svg" type="image/svg+xml" />
+  <meta name="x-icue-widget-preview" content="resources/preview.png" />
+  <link rel="stylesheet" href="styles/main.css" />
+
+  <meta name="x-icue-property" content="wledIp" data-label="'Adresse IP du WLED / WLED IP address'" data-type="textfield" data-default="'0.0.0.0'" />
+  <meta name="x-icue-property" content="displayName" data-label="'Nom affich\u00e9 (auto = nom du WLED) / Display name (auto = WLED name)'" data-type="textfield" data-default="'auto'" />
+  <meta name="x-icue-property" content="startTab" data-label="'Onglet au d\u00e9marrage / Startup tab'" data-type="combobox" data-default="'Couleurs / Colors'" data-values="['Couleurs / Colors', 'Effets / Effects', 'Palettes', 'Pr\u00e9r\u00e9glages / Presets']" />
+  <meta name="x-icue-property" content="showEffects" data-label="'Afficher les effets / Show effects'" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showPalettes" data-label="'Afficher les palettes / Show palettes'" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="showPresets" data-label="'Afficher les pr\u00e9r\u00e9glages / Show presets'" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="accentFromLed" data-label="'Accent selon la couleur des DEL / Accent from LED color'" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="textColor" data-label="'Couleur du texte / Text color'" data-type="color" data-default="'#ECEEF2'" />
+  <meta name="x-icue-property" content="accentColor" data-label="'Couleur d\u2019accent / Accent color'" data-type="color" data-default="'#FFB45A'" />
+  <meta name="x-icue-property" content="backgroundColor" data-label="'Arri\u00e8re-plan / Background'" data-type="color" data-default="'#191B22'" />
+  <meta name="x-icue-property" content="lang" data-label="'Langue / Language'" data-type="combobox" data-default="'Automatique / Automatic'" data-values="['Automatique / Automatic', 'Fran\u00e7ais', 'English']" />
+  <meta name="x-icue-property" content="bgOpacity" data-label="'Opacit\u00e9 du fond / Background opacity'" data-type="slider" data-default="100" data-min="0" data-max="100" data-step="5" data-unit-label="'%'" />
+  <meta name="x-icue-property" content="nightMode" data-label="'\u00c9cran att\u00e9nu\u00e9 la nuit / Dim screen at night'" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="liveView" data-label="'Aper\u00e7u des DEL en direct / Live LED preview'" data-type="switch" data-default="true" />
+  <meta name="x-icue-property" content="reactEnabled" data-label="'Couleur selon un capteur du PC / Color from a PC sensor'" data-type="switch" data-default="false" />
+  <meta name="x-icue-property" content="reactSensor" data-label="'Capteur / Sensor'" data-type="sensors-combobox" data-default="plugins.Sensorsdataprovider.getDefaultSensorIdBlock('temperature')" />
+  <meta name="x-icue-property" content="reactMin" data-label="'Valeur basse (bleu) / Low value (blue)'" data-type="slider" data-default="35" data-min="0" data-max="120" data-step="1" />
+  <meta name="x-icue-property" content="reactMax" data-label="'Valeur haute (rouge) / High value (red)'" data-type="slider" data-default="80" data-min="0" data-max="120" data-step="1" />
+  <meta name="x-icue-property" content="pollInterval" data-label="'Rafra\u00eechissement HTTP / HTTP refresh'" data-type="slider" data-default="5" data-min="2" data-max="30" data-step="1" data-unit-label="'s'" />
+  <meta name="x-icue-property" content="debugMode" data-label="'Mode diagnostic / Diagnostic mode'" data-type="switch" data-default="false" />
+  <script type="application/json" id="x-icue-groups">
+  [
+    { "title": "'Connexion / Connection'", "properties": ["wledIp", "displayName"] },
+    { "title": "'Affichage / Display'", "properties": ["lang", "bgOpacity", "nightMode", "startTab", "showEffects", "showPalettes", "showPresets", "accentFromLed", "liveView"] },
+    { "title": "'R\u00e9action au PC / PC reaction'", "properties": ["reactEnabled", "reactSensor", "reactMin", "reactMax"] },
+    { "title": "'Style'", "properties": ["textColor", "accentColor", "backgroundColor"] },
+    { "title": "'Avanc\u00e9 / Advanced'", "properties": ["pollInterval", "debugMode"] }
+  ]
+  </script>
+</head>
+<body>
+  <div id="app" class="is-loading">
+    <section class="hero">
+      <button id="orb" class="orb" type="button" aria-label="Allumer ou éteindre">
+        <span class="orb-glow"></span>
+        <span class="orb-core"></span>
+        <svg class="orb-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3v8" /><path d="M6.3 6.8a8 8 0 1 0 11.4 0" />
+        </svg>
+      </button>
+      <div class="hero-text">
+        <div id="name" class="name">WLED</div>
+        <span id="stateChip" class="state-chip">Éteint</span>
+        <div id="subtitle" class="subtitle">Connexion…</div>
+      </div>
+      <div class="hero-actions">
+      <button id="timerBtn" class="icon-btn timer-btn" type="button" aria-label="Routines">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>
+        <span class="timer-left"><span id="timerLeft"></span><span class="timer-unit"> min</span></span>
+      </button>
+      <button id="settingsBtn" class="icon-btn" type="button" aria-label="Changer l’adresse du contrôleur">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="3.2" />
+          <path d="M12 2.8v2.6M12 18.6v2.6M21.2 12h-2.6M5.4 12H2.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8M18.5 18.5l-1.8-1.8M7.3 7.3L5.5 5.5" />
+        </svg>
+      </button>
+      </div>
+    </section>
+
+    <div id="halo" class="halo" hidden>
+      <div class="h-amb h-amb1"></div>
+      <div class="h-amb h-amb2"></div>
+      <div id="hDial" class="h-dial" role="slider" aria-label="Luminosité">
+        <svg class="h-arc" viewBox="0 0 296 296" aria-hidden="true">
+          <defs>
+            <linearGradient id="hGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop class="h-s1" offset="0" />
+              <stop class="h-s2" offset="0.5" />
+              <stop class="h-s3" offset="1" />
+            </linearGradient>
+          </defs>
+          <circle class="h-track" cx="148" cy="148" r="128" />
+          <circle id="hArc" class="h-prog" cx="148" cy="148" r="128" />
+        </svg>
+        <button id="hOrb" class="h-orb" type="button" aria-label="Allumer ou éteindre"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8" /><path d="M6.3 6.8a8 8 0 1 0 11.4 0" /></svg></button>
+        <div class="h-pct"><span id="hPct">0</span><small> %</small></div>
+      </div>
+      <div class="h-info">
+        <div class="h-head">
+          <span id="hName" class="h-name">WLED</span>
+          <span id="hState" class="h-state">Éteint</span>
+          <button id="hPomo" class="h-pomo" type="button" hidden><span class="h-pomo-dot"></span><span id="hPomoLabel" class="h-pomo-label"></span><span id="hPomoText"></span></button>
+          <button id="hBadge" class="h-pomo h-badge" type="button" hidden><span class="h-pomo-dot"></span><span id="hBadgeText"></span></button>
+          <div class="h-actions h-actions-head"><button type="button" class="h-act" data-stab="timers" aria-label="Minuteries"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12M6 21h12M7 3c0 6 10 6 10 9s-10 3-10 9M17 3c0 6-10 6-10 9s10 3 10 9" /></svg></button><button type="button" class="h-act" data-stab="prog" aria-label="Programmation"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4M7.5 14h3M13.5 14h3" /></svg></button></div>
+        </div>
+        <div class="h-cap">Effet</div>
+        <div id="hFx" class="h-fx">…</div>
+        <div id="hPal" class="h-pal"></div>
+        <div class="h-live"><canvas id="hLiveGlow" class="h-live-glow" width="300" height="12"></canvas><canvas id="hLive" class="h-live-strip" width="300" height="12"></canvas></div>
+        <div class="h-actions h-actions-under"><button type="button" class="h-act" data-stab="timers" aria-label="Minuteries"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12M6 21h12M7 3c0 6 10 6 10 9s-10 3-10 9M17 3c0 6-10 6-10 9s10 3 10 9" /></svg></button><button type="button" class="h-act" data-stab="prog" aria-label="Programmation"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4M7.5 14h3M13.5 14h3" /></svg></button></div>
+      </div>
+      <div class="h-dock">
+        <button class="h-dk" type="button" data-open="colors"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c3 3.6 6 6.8 6 10a6 6 0 0 1-12 0c0-3.2 3-6.4 6-10z" /></svg><span>Couleurs</span></button>
+        <button class="h-dk" type="button" data-open="effects"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.6L12 15l-1.8-4.4L5.5 9l4.7-1.4z" /><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" /></svg><span>Effets</span></button>
+        <button class="h-dk" type="button" data-open="palettes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.4 0 1.8-1 1.3-2-.6-1.2.2-2.5 1.6-2.5H17a3.5 3.5 0 0 0 3.5-3.5c0-5-3.8-9-8.5-9z" /><circle cx="7.8" cy="11.5" r="1.2" /><circle cx="10.5" cy="7.5" r="1.2" /><circle cx="15" cy="7.8" r="1.2" /></svg><span>Palettes</span></button>
+        <button class="h-dk" type="button" data-open="presets"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8l2.5 5.1 5.6.8-4 3.9.9 5.6-5-2.6-5 2.6.9-5.6-4-3.9 5.6-.8z" /></svg><span>Préréglages</span></button>
+      </div>
+    </div>
+    <button id="drawerClose" class="drawer-close" type="button" aria-label="Fermer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
+
+    <div id="live" class="live" hidden>
+      <canvas id="liveGlow" class="live-glow" width="300" height="12"></canvas>
+      <canvas id="liveStrip" class="live-strip" width="300" height="12"></canvas>
+    </div>
+
+    <div id="briFader" class="fader fader-main" role="slider" aria-label="Luminosité" tabindex="0">
+      <div class="fader-fill"></div>
+      <span class="fader-label">
+        <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6" />
+        </svg>
+        Luminosité
+      </span>
+      <span class="fader-value">0 %</span>
+    </div>
+
+    <nav id="tabs" class="tabs">
+      <button type="button" data-tab="colors">Couleurs</button>
+      <button type="button" data-tab="effects">Effets</button>
+      <button type="button" data-tab="palettes">Palettes</button>
+      <button type="button" data-tab="presets">Préréglages</button>
+    </nav>
+
+    <section id="panels" class="panels">
+      <div class="panel" data-panel="colors">
+        <p id="reactNote" class="react-note" hidden></p>
+        <div class="moods-head">
+          <p class="moods-title">Ambiances : trois couleurs d’un toucher</p>
+          <div id="moodNow" class="mood-now"><span>En cours</span><i></i><i></i><i></i></div>
+        </div>
+        <div id="moods" class="moods"></div>
+        <div class="adjust">
+          <div class="adjust-head"><span>Ajuster une couleur</span></div>
+        <div class="slots-row">
+          <div id="colorSlots" class="color-slots" role="radiogroup" aria-label="Couleur à modifier">
+            <button type="button" data-slot="0" class="is-active" role="radio"><span class="slot-dot"></span><span>Couleur 1</span></button>
+            <button type="button" data-slot="1" role="radio"><span class="slot-dot"></span><span>Couleur 2</span></button>
+            <button type="button" data-slot="2" role="radio"><span class="slot-dot"></span><span>Couleur 3</span></button>
+          </div>
+          <p id="slotHint" class="slot-hint"></p>
+        </div>
+        <div id="swatches" class="swatches"></div>
+        <div class="adjust-row">
+          <button id="solidBtn" type="button" class="solid-btn" aria-label="Couleur unie"><span class="solid-dot"></span><span class="solid-label">Unie</span></button>
+          <div id="hueBar" class="hue-bar" role="slider" aria-label="Teinte" tabindex="0">
+          <span class="hue-thumb"></span>
+        </div>
+          <button id="whiteBtn" type="button" class="white-btn" aria-label="Blanc"></button>
+          <button id="warmBtn" type="button" class="white-btn is-warm" aria-label="Blanc chaud"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="effects">
+        <div class="mini-faders">
+          <div id="sxFader" class="fader fader-mini" role="slider" aria-label="Vitesse" tabindex="0">
+            <div class="fader-fill"></div><span class="fader-label">Vitesse</span><span class="fader-value"></span>
+          </div>
+          <div id="ixFader" class="fader fader-mini" role="slider" aria-label="Intensité" tabindex="0">
+            <div class="fader-fill"></div><span class="fader-label">Intensité</span><span class="fader-value"></span>
+          </div>
+        </div>
+        <div id="fxCats" class="cat-grid"></div>
+        <div id="fxCatView" class="cat-view" hidden>
+          <div class="cat-head">
+            <button id="fxBack" type="button" class="back-btn" aria-label="Retour aux familles">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+            </button>
+            <div class="cat-head-text">
+              <div id="fxCatName" class="cat-head-name"></div>
+              <div id="fxCatCount" class="cat-head-count"></div>
+            </div>
+          </div>
+          <ul id="fxList" class="list list-big"></ul>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="palettes">
+        <div id="palCats" class="cat-grid"></div>
+        <div id="palCatView" class="cat-view" hidden>
+          <div class="cat-head">
+            <button id="palBack" type="button" class="back-btn" aria-label="Retour aux familles">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+            </button>
+            <div class="cat-head-text">
+              <div id="palCatName" class="cat-head-name"></div>
+              <div id="palCatCount" class="cat-head-count"></div>
+            </div>
+          </div>
+          <p id="palHint" class="pal-hint" hidden>Ces palettes utilisent tes couleurs 1, 2 et 3. Règle-les dans l’onglet Couleurs, avec les boutons Couleur 1, 2 et 3.</p>
+          <ul id="palList" class="list list-big"></ul>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="presets">
+        <button id="cinemaBtn" type="button" class="cinema-btn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 9h18M3 15h18M8 5v4M16 5v4M8 15v4M16 15v4" /></svg>
+          <span><strong>Mode cinéma</strong><small id="cinemaSub">Tamise tout à 10 % en blanc chaud</small></span>
+        </button>
+        <button id="skyBtn" type="button" class="cinema-btn sky-btn">
+          <span class="sky-icon" aria-hidden="true"></span>
+          <span><strong>Fenêtre sur le ciel</strong><small id="skySub">La bande suit la couleur du ciel, en temps réel</small></span>
+        </button>
+        <ul id="psList" class="list list-grid"></ul>
+      </div>
+    </section>
+
+    <div id="splash" class="splash" hidden>
+      <div class="splash-glow"></div>
+      <img class="splash-logo" src="resources/logo.webp" alt="EdgeGlow" />
+      <div class="splash-dots"><span></span><span></span><span></span></div>
+      <p id="splashText" class="splash-text">Connexion…</p>
+    </div>
+
+    <div id="notice" class="notice" hidden>
+      <p id="noticeTitle" class="notice-title"></p>
+      <p id="noticeText" class="notice-text"></p>
+      <div class="notice-actions">
+        <button id="changeIpBtn" type="button" class="notice-btn">Changer l’adresse</button>
+        <button id="retryBtn" type="button" class="notice-btn notice-btn-primary">Réessayer</button>
+      </div>
+    </div>
+
+    <div id="timerSheet" class="sheet" hidden>
+      <div class="sheet-head">
+        <div>
+          <p id="sheetTitle" class="sheet-title">Minuteries</p>
+        </div>
+        <button id="timerClose" type="button" class="icon-btn" aria-label="Fermer">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+      <div class="sheet-tabs" role="tablist">
+        <button type="button" data-stab="timers" class="is-active">Minuteries</button>
+        <button type="button" data-stab="prog">Programmation</button>
+      </div>
+
+      <div class="stab" data-stab="timers">
+      <div class="pomo pomo-first">
+        <div class="sched-head">
+          <p class="sched-title">Minuterie de veille</p>
+          <p id="timerInfo" class="sched-clock">Les DEL baissent doucement puis s’éteignent.</p>
+        </div>
+      </div>
+      <div class="sheet-grid">
+        <button type="button" data-min="15">15 min</button>
+        <button type="button" data-min="30">30 min</button>
+        <button type="button" data-min="60">1 h</button>
+        <button type="button" data-min="90">1 h 30</button>
+      </div>
+      <button id="timerCancel" type="button" class="btn-ghost sheet-cancel" hidden>Annuler la minuterie</button>
+
+      <div class="pomo">
+        <div class="sched-head">
+          <p class="sched-title">Pomodoro lumineux</p>
+          <p id="pomoStatus" class="sched-clock">La bande se remplit pendant le travail</p>
+        </div>
+        <div id="pomoIdle" class="sheet-grid pomo-grid">
+          <button type="button" data-pomo="25,5">25 min + 5 min</button>
+          <button type="button" data-pomo="50,10">50 min + 10 min</button>
+        </div>
+        <div id="pomoRun" class="pomo-run" hidden>
+          <div class="pomo-bar"><span id="pomoFill"></span></div>
+          <div class="pomo-actions">
+            <button id="pomoPause" type="button">Pause</button>
+            <button id="pomoSkip" type="button">Passer</button>
+            <button id="pomoStop" type="button">Arrêter</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pomo">
+        <div class="sched-head">
+          <p class="sched-title">Rappel de pause</p>
+          <p id="breakStatus" class="sched-clock">Une douce pulsation bleue te rappelle de bouger</p>
+        </div>
+        <div id="breakChoices" class="ed-chips sheet-chips">
+          <button type="button" data-every="0">Non</button>
+          <button type="button" data-every="30">30 min</button>
+          <button type="button" data-every="45">45 min</button>
+          <button type="button" data-every="60">1 h</button>
+        </div>
+      </div>
+
+      <div class="pomo">
+        <div class="sched-head">
+          <p class="sched-title">Respiration guidée</p>
+          <p id="breathStatus" class="sched-clock">Inspire quand la bande s’allume, expire quand elle s’éteint</p>
+        </div>
+        <div id="breathIdle" class="sheet-grid pomo-grid">
+          <button type="button" data-breath="3">3 min</button>
+          <button type="button" data-breath="5">5 min</button>
+        </div>
+        <button id="breathStop" type="button" class="btn-ghost sheet-cancel" hidden>Arrêter la respiration</button>
+      </div>
+
+      <div class="pomo">
+        <div class="sched-head">
+          <p class="sched-title">Compte à rebours</p>
+          <p id="cdStatus" class="sched-clock">La bande se vide pendant la dernière heure</p>
+        </div>
+        <div id="cdEdit" class="ed-steppers cd-edit"></div>
+        <div class="cd-actions">
+          <button id="cdStart" type="button" class="btn-primary">Démarrer</button>
+          <button id="cdStop" type="button" class="btn-ghost" hidden>Arrêter</button>
+        </div>
+      </div>
+
+      </div>
+
+      <div class="stab" data-stab="prog" hidden>
+      <div class="sched">
+        <div class="sched-head">
+          <p class="sched-title">Horaire du WLED</p>
+          <p id="schedClock" class="sched-clock"></p>
+        </div>
+        <ul id="schedList" class="sched-list"></ul>
+        <button id="schedEdit" type="button" class="btn-primary sched-edit">Programmer l’horaire</button>
+      </div>
+
+      <div class="pomo">
+        <div class="sched-head">
+          <p class="sched-title">Lumière circadienne</p>
+          <p id="circStatus" class="sched-clock"></p>
+        </div>
+        <div id="circSteps" class="circ-steps"></div>
+        <button id="circToggle" type="button" class="btn-primary sched-edit">Activer</button>
+      </div>
+      </div>
+    </div>
+
+    <div id="schedEditor" class="editor" hidden>
+      <div class="sheet-head">
+        <div>
+          <p class="sheet-title">Allumage et extinction</p>
+          <p class="sheet-text">Enregistré dans le WLED : fonctionne même si ton PC est éteint.</p>
+        </div>
+        <button id="edClose" type="button" class="icon-btn" aria-label="Fermer">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+      <div id="edBody" class="editor-body"></div>
+      <p id="edMsg" class="setup-msg"></p>
+      <div class="setup-actions">
+        <button id="edRemove" type="button" class="btn-ghost">Retirer</button>
+        <button id="edSave" type="button" class="btn-primary">Enregistrer</button>
+      </div>
+    </div>
+
+    <div id="setup" class="setup" hidden>
+      <div class="setup-side">
+        <p class="setup-title">Adresse IP du WLED</p>
+        <div id="ipDisplay" class="ip-display"></div>
+        <p id="setupMsg" class="setup-msg"></p>
+        <p class="setup-hint">Astuce : entre plutôt l’adresse dans les réglages du widget, dans iCUE (groupe Connexion). L’aperçu d’iCUE et l’écran l’auront tous les deux.</p>
+        <div class="setup-actions">
+          <button id="setupCancel" type="button" class="btn-ghost">Annuler</button>
+          <button id="setupSave" type="button" class="btn-primary">Enregistrer</button>
+        </div>
+      </div>
+      <div id="keypad" class="keypad">
+        <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button>
+        <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button>
+        <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
+        <button type="button" data-key=".">.</button><button type="button" data-key="0">0</button>
+        <button type="button" data-key="back" aria-label="Effacer">⌫</button>
+      </div>
+    </div>
+  </div>
+
+  <pre id="diag" class="diag" hidden></pre>
+
+  <script src="scripts/i18n.js"></script>
+  <script src="scripts/wled-client.js"></script>
+  <script src="scripts/categories.js"></script>
+  <script src="scripts/schedule.js"></script>
+  <script src="scripts/main.js"></script>
+</body>
+</html>
